@@ -1,0 +1,52 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: prometheus-server
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      monitor: prometheus
+      scrape: pull
+  template:
+    metadata:
+      labels:
+        monitor: prometheus
+        scrape: pull
+    spec:
+      serviceAccountName: monitor-sa
+      volumes:
+      - name: prometheus-configfile
+        configMap:
+          defaultMode: 420
+          name: prometheus-configfile
+      - name: prometheus-configrules
+        configMap:
+          defaultMode: 420
+          name: prometheus-configrules
+      - name: prometheus-datadir
+        emptyDir:
+          sizeLimit: 10G
+      containers:
+      - name: prometheus-service
+        image: prom/prometheus:v2.45.2
+        imagePullPolicy: IfNotPresent
+        args:
+          - "--web.enable-lifecycle"
+          - "--query.lookback-delta=2m"
+          - "--web.enable-admin-api"
+          - "--config.file=/etc/prometheus/prometheus.yml"
+          - "--storage.tsdb.path=/prometheus"
+        ports:
+        - containerPort: 9090
+        volumeMounts:
+        - name: prometheus-configfile
+          mountPath: /etc/prometheus
+        - name: prometheus-configrules
+          mountPath: /etc/prometheus
+        - name: prometheus-datadir
+          mountPath: /prometheus
